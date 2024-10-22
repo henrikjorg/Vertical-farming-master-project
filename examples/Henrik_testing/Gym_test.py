@@ -1,5 +1,10 @@
-import sys
 import os
+import sys  # Add this import
+
+# Set path for running local script
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))  # Adjusted path
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Ignore tensorflow warning
+
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -8,15 +13,13 @@ from config.utils import load_config
 from external.utils import load_data
 from envs.env import VerticalFarmEnv
 
-# Set path for running local script
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Ignore tensorflow warning
+
 
 # Print the current working directory for debugging
 print("Current working directory:", os.getcwd())
 
 # Load configuration
-config = load_config('../../config/')
+config = load_config('config/')
 
 # Define start and end datetime for the simulation
 start_date = '2023-01-01'
@@ -25,8 +28,7 @@ start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
 end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
 
 # Correct the path to the data file
-data_path = os.path.abspath('../../external/weather/data')
-print("Data path:", data_path)
+data_path = os.path.abspath('external/weather/data')
 
 # Load data
 data = load_data(data_path, start_datetime, end_datetime)
