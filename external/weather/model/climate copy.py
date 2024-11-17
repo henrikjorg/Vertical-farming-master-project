@@ -11,7 +11,7 @@ from models.deterministic.utils import calculate_absolute_humidity
 
 
 class ClimateModel:
-    def __init__(self, config: Dict[str, Any], cycle_duration_days):
+    def __init__(self, config: Dict[str, Any], total_steps, cycle_duration_days):
         self.hvac_model = HVACModel(config)
 
         # Get constants and parameters from config
@@ -64,9 +64,10 @@ class ClimateModel:
 
         self.init_state = np.array([self.T_in, self.Chi_in, self.CO2_in, self.T_env, self.T_sup, self.Chi_sup])
 
+
         # Initialize arrays to store intermediate data from solve_ivp function
-        num_seconds = 24*60*60*cycle_duration_days + 1
-        self.Q_data = np.zeros([5, num_seconds], dtype=float)
+        num_seconds = int(24*60*60*cycle_duration_days + 1)
+        self.Q_data = np.zeros((5, total_steps), dtype=float)
         self.Phi_data = np.zeros([2, num_seconds], dtype=float)
         self.Phi_c_data = np.zeros([3, num_seconds], dtype=float)
 
@@ -157,8 +158,13 @@ class ClimateModel:
 
         return (1/(self.V_in*self.rho_c))*(Phi_c_inj + Phi_c_ass + Phi_c_hvac)
 
-    def combined_ODE(self, t, current_step, state, control_inputs, data, hvac_input):
-        self.t = int(t) + int(60*60*current_step)
+    def combined_ODE(self, current_step, state, control_inputs, data, hvac_input):
+            #self.t = int(t) + int(60*60*current_step)
+        self.t = current_step
+        # Safeguard against out-of-bounds indexing
+        if self.t >= self.Q_data.shape[1]:
+            raise IndexError(f"Index {self.t} out of bounds for Q_data with size {self.Q_data.shape[1]}")
+
 
         T_in, Chi_in, CO2_in, T_env, T_sup, Chi_sup, X_ns, X_s = state
         self._update_state(T_in, Chi_in, CO2_in, T_env, T_sup, Chi_sup)
@@ -166,7 +172,6 @@ class ClimateModel:
         LAI = self.crop_model.LAI
         CAC = self.crop_model.CAC
         f_phot = self.crop_model.f_phot
-
 
         u_rot, u_sup, u_cool, u_heat, u_humid, u_c_inj, PPFD = control_inputs
         T_out, RH_out, electricity_prices = data

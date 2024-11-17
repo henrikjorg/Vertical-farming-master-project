@@ -10,8 +10,10 @@ from models.deterministic.plant_model.crop_remake import CropModel
 from config.utils import get_attribute
 
 class Model:
-    def __init__(self, config, cycle_duration_days):
-        self.climate_model = ClimateModel(config, cycle_duration_days)
+    def __init__(self, config, total_steps, cycle_duration_days):
+
+        # Initialize climate and crop models
+        self.climate_model = ClimateModel(config, total_steps, cycle_duration_days)
         self.crop_model = CropModel(config)
 
         # Set references between models
@@ -46,7 +48,7 @@ class Model:
         if ignore_environment:
             climate_derivatives = np.zeros(6)
         else:
-            climate_derivatives = self.climate_model.combined_ODE(t, current_step, state, control_input, external_input, hvac_input)
+            climate_derivatives = self.climate_model.combined_ODE(current_step, state, control_input, external_input, hvac_input)
         
         crop_derivatives = self.crop_model.combined_ODE(state, control_input, external_input)
 

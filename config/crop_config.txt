@@ -1,0 +1,31 @@
+{
+    "ideal_temp": 24,                       //Ideal indoor air temperature
+    "ideal_PPFD": 400,                      //Ideal Photosynthetic photon flux density (See chapter  in the report)
+    "init_X_fw_per_plant": 2,               //Fresh weight of a shoot per plant
+    "planting_crop_density": 25,            //Planting Crop Density (PCD). Number of plants per square meter
+    "initial_Xdw_to_Xsdw": 0.75,            //Ratio for how much of the initial dry weight is structural dry weight. Is only used in the first step. Try different values?
+    "c_d": 0.05,                            //Dry matter constant
+    "leaf_to_shoot_ratio": 0.92,
+    "leaf_diameter": 0.11,
+    "c_tau": 0.15,
+    "c_Q10_gr": 1.6,
+    "c_gamma": 1,
+    "c_gr_max": 0.000005,
+    "c_beta": 0.72,
+    "c_alpha": 0.68,                        //  
+    "c_resp_sht": 0.000000347,
+    "c_resp_rt": 0.000000116,
+    "c_q10_resp": 2,
+    "c_K": 0.9,                             //??? Is 0.5 more common?
+    "c_lar": 0.075,
+    "c_w": 0.001893,
+    "c_Gamma": 71.5,
+    "c_Q10_Gamma": 2,
+    "c_car_1": -0.0000132,
+    "c_car_2": 0.000594,
+    "c_car_3": -0.00264,
+    "c_epsilon": 17e-6,
+    "c_p": 0.217,
+    "CO2_in": 1200,                         // CO2_in is the CO2 concentration of the inside air
+    "T_in": 24,
+}

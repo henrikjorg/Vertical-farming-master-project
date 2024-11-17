@@ -24,3 +24,6 @@ python scenarios.py
 cd mpc_optimization
 python casadi_mpc_closed_loop.py
 ```
+
+## Comments in code
+B&T is the master thesis of Gjermund Bae and Jakob Tiller.

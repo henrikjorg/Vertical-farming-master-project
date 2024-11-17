@@ -19,7 +19,6 @@ from render.print import RenderPrint
 from render.file import RenderFile
 from config.utils import get_attribute
 
-
 HOURS_IN_DAY = int(24)
 MINUTES_IN_HOUR = int(60)
 SECONDS_IN_MINUTE = int(60)
@@ -30,22 +29,36 @@ class VerticalFarmEnv(gym.Env):
         'render_modes': ['print', 'live', 'file'],
     }
 
+   # def __init__(self, start_datetime, config, data, end_datetime: Optional[datetime] = None, render_mode: Optional[str] = None):
+    
     def __init__(self, start_datetime, config, data, end_datetime: Optional[datetime] = None, steps_per_day=24, render_mode: Optional[str] = None):
+
+
         self.env_start_datetime = start_datetime
         self.env_end_datetime = end_datetime
         self.config = config
         self.data = data
         self.render_mode = render_mode
 
+        self.steps_per_day = steps_per_day
+        # Calculate total simulation duration in seconds
+        self.simulation_duration = (end_datetime - start_datetime).total_seconds()
+        self.seconds_per_iter = 24 * 60 * 60 // self.steps_per_day  # Seconds per step
+        self.total_steps = int(self.simulation_duration // self.seconds_per_iter)
+
+
         # Get simulation configuration attributes
-        self.cycle_duration_days = get_attribute(config, 'cycle_duration_days')
+        self.cycle_duration_days = (end_datetime - start_datetime).total_seconds() / (24 * 60 * 60)
+
+        print(f'HEeeeer: '{self.cycle_duration_days})
 
         self.u_sup_max = get_attribute(config, 'u_sup_max')
         self.rho_air = get_attribute(config, 'rho_air')
         self.c_air = get_attribute(config, 'c_air')
 
         # Initialize model
-        self.model = Model(self.config, self.cycle_duration_days)
+        self.model = Model(self.config, self.total_steps, self.cycle_duration_days)
+
 
         # Set attributes to render
         self.crop_attributes_to_render = ['LAI', 'CAC', 'f_phot', 'dry_weight_per_plant', 'fresh_weight_shoot_per_plant']
@@ -63,20 +76,33 @@ class VerticalFarmEnv(gym.Env):
         num_control_inputs = 7
         self.action_space = spaces.Box(low=0, high=1, shape=(num_control_inputs,), dtype=np.float32)
 
-        self._initialize_simulation(self.cycle_duration_days)
+        self._initialize_simulation()
         
-    def _initialize_simulation(self, num_days: int):
+    def _initialize_simulation(self):
         self.terminated = False
 
-        self.seconds_per_iter = MINUTES_IN_HOUR*SECONDS_IN_MINUTE
-        self.Tf = num_days*HOURS_IN_DAY*self.seconds_per_iter               # Final time of the simulation
-        self.t_eval = np.linspace(0,self.Tf, num=self.Tf+1, endpoint=True)  # Time points to evaluate the solution
+        # Define t_eval based on steps
+        self.t_eval = np.arange(0, self.simulation_duration + self.seconds_per_iter, self.seconds_per_iter)
+        print('dette er t_eval')
+        print(self.t_eval)
+        # Initialize arrays
+        #self.solutions = np.zeros((len(self.data.columns), len(self.t_eval)), dtype=float)
+        #self.actions = np.zeros((len(self.data.columns), len(self.t_eval)), dtype=float)
+
+        
+        #self.seconds_per_iter = MINUTES_IN_HOUR*SECONDS_IN_MINUTE
+        #self.Tf = num_days*HOURS_IN_DAY*self.seconds_per_iter               # Final time of the simulation
+        #self.t_eval = np.linspace(0,self.Tf, num=self.Tf+1, endpoint=True)  # Time points to evaluate the solution
         
         self.cur_index_i = 0 # Initial index of the current iteration
 
         # Initialize the state vector and an array to store the solutions
         self.y0 = np.concatenate((self.model.climate_model.init_state, self.model.crop_model.init_state), axis=None)
+        print('dette eeeeerrr y0')
+        print(self.y0)
+
         self.solutions = np.zeros([len(self.y0), len(self.t_eval)], dtype=float)
+        print(self.solutions.shape)
 
         # Initialize arrays to store the control inputs and data
         self.actions = np.zeros([self.action_space._shape[0], len(self.t_eval)], dtype=float)
@@ -106,7 +132,7 @@ class VerticalFarmEnv(gym.Env):
         self.visualization = None
         self.current_step = 0
         self.reward = 0.0
-        self._initialize_simulation(self.cycle_duration_days)
+        self._initialize_simulation()
         
         if self.env_end_datetime is None: # The simulation will only run for one cycle
             self.start_datetime = self.env_start_datetime
@@ -142,12 +168,21 @@ class VerticalFarmEnv(gym.Env):
         T_hvac, Chi_hvac, Chi_out = self.model.climate_model.hvac_model.calculate_supply_air(self.y0, control_input, data)
         hvac_input = tuple([T_hvac, Chi_hvac, Chi_out])
         
-        sol = solve_ivp(fun=self.model.ODEs,
-                        t_span=[0, self.seconds_per_iter],
-                        y0=self.y0,
-                        method='RK45',
-                        t_eval=np.linspace(0, self.seconds_per_iter, num=self.seconds_per_iter),
-                        args=[control_input, external_input, hvac_input, self.current_step])
+        t_eval = np.linspace(
+            self.t_eval[self.cur_index_i], 
+            self.t_eval[self.cur_index_i + 1], 
+            self.seconds_per_iter + 1  # Ensures consistent time points per iteration
+        )
+
+        # Solve the system of ODEs
+        sol = solve_ivp(
+            fun=self.model.ODEs,
+            t_span=(self.t_eval[self.cur_index_i], self.t_eval[self.cur_index_i + 1]),
+            y0=self.y0,
+            method='RK45',
+            t_eval=t_eval,
+            args=[control_input, external_input, hvac_input, self.current_step]
+        )
         
         self.process_solution(sol, action, data)
 
@@ -168,20 +203,27 @@ class VerticalFarmEnv(gym.Env):
         return self.observation, self.reward, self.terminated, False, {}
     
     def process_solution(self, sol, action, data):
-        self.cur_index_f = self.cur_index_i + len(sol.t)
+        # Number of time points in the solution
+        num_time_points = sol.y.shape[1]
 
-        # Store the solution in the solutions array
-        self.solutions[:,self.cur_index_i:self.cur_index_f] = sol.y
+        # Assign the solution to the solutions array
+        self.solutions[:, self.cur_index_i:self.cur_index_i + num_time_points] = sol.y
 
-        # Store the control inputs and data
-        self.actions[:,self.cur_index_i:self.cur_index_f+1] = np.tile(action, (self.seconds_per_iter+1, 1)).T
-        self.all_data[:,self.cur_index_i:self.cur_index_f+1] = np.tile(data, (self.seconds_per_iter+1, 1)).T
-        
-        # Store the attributes to render
+        # Update action logging
+        self.actions[:, self.cur_index_i:self.cur_index_i + num_time_points] = np.tile(action, (num_time_points, 1)).T
+
+        # Assign external data
+        self.all_data[:, self.cur_index_i:self.cur_index_i + num_time_points] = np.tile(data, (num_time_points, 1)).T
+
+        # Store crop and climate attributes
         for key in self.crop_attrs.keys():
-            self.crop_attrs[key][self.cur_index_i:self.cur_index_f+1] = getattr(self.model.crop_model, key)
+            self.crop_attrs[key][self.cur_index_i:self.cur_index_i + num_time_points] = getattr(self.model.crop_model, key)
         for key in self.climate_attrs.keys():
-            self.climate_attrs[key][self.cur_index_i:self.cur_index_f+1] = getattr(self.model.climate_model, key)
+            self.climate_attrs[key][self.cur_index_i:self.cur_index_i + num_time_points] = getattr(self.model.climate_model, key)
+
+        # Update current index
+        self.cur_index_i += num_time_points
+
     
     def render(self):
         if self.render_mode == None:
@@ -228,6 +270,7 @@ class VerticalFarmEnv(gym.Env):
 
         if self.render_mode == 'file':
             self.visualization.save(self.t_eval, self.model, self.solutions, self.climate_attrs, self.crop_attrs, self.actions, self.all_data)
+
         if self.visualization != None:
             self.visualization.close()
             self.visualization = None

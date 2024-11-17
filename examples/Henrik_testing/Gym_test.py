@@ -47,7 +47,8 @@ Phi_data = []
 
 # Run the simulation for a number of steps
 for step in range(100):  # Adjust the number of steps as needed
-    action = env.action_space.sample()  # Sample a random action
+    action = np.array([0.5, 0.3, 0.1, 0.7, 0.2, 0.1, 0.4])  # Replace with realistic values. u_rot, u_fan, u_cool, u_heat, u_humid, u_c:inj, PPFD
+#    action = env.action_space.sample()  # Random action
     observation, reward, terminated, truncated, info = env.step(action)
     # Store the observation, reward, Q, and Phi
     observations.append(observation)
@@ -83,4 +84,4 @@ def save_simulation_results_to_csv(env, observations, rewards, Q_data, Phi_data,
     df.to_csv(filename, index=False)
 
 # Save the results
-save_simulation_results_to_csv(env, observations, rewards, Q_data, Phi_data, 'simulation_results.csv')
+save_simulation_results_to_csv(env, observations, rewards, Q_data, Phi_data, 'examples/Henrik_testing/simulation_results.csv')

@@ -2,6 +2,7 @@ import json
 from typing import List
 
 
+
 def load_config(folder_path) -> dict:
     """Load multiple configuration files and combine them into one dictionary."""
     combined_config = {}

@@ -48,20 +48,25 @@ class CropModel:
 
     def set_dynamic_attributes(self):
         self.fresh_weight_shoot_per_plant: float = self.init_FW_per_plant
-        self.fresh_weight_shoot: float = self.fresh_weight_shoot_per_plant * self.plant_density
-        self.dry_weight: float = self.fresh_weight_shoot * self.dry_weight_fraction / (1 - self.c_tau)
+        self.fresh_weight_shoot: float = self.fresh_weight_shoot_per_plant * self.plant_density                 # Equation 3.15 in the B&T-master (Bae and Tiller)
+        self.dry_weight: float = self.fresh_weight_shoot * self.dry_weight_fraction / (1 - self.c_tau)          # Equation 3.16 in the B&T-master
         self.dry_weight_per_plant: float = self.dry_weight / self.plant_density
         self.structural_dry_weight_per_plant: float = self.dry_weight_per_plant * self.structural_to_nonstructural
         self.X_ns: float = self.dry_weight * (1 - self.structural_to_nonstructural)
         self.X_s: float = self.dry_weight * self.structural_to_nonstructural
         # self.LAI: float = SLA_to_LAI(SLA=self.SLA, c_tau=self.c_tau, leaf_to_shoot_ratio=self.leaf_to_shoot_ratio, X_s=self.X_s, X_ns=self.X_ns)
-        self.LAI: float = biomass_to_LAI(self.X_s, self.c_lar, self.c_tau)
-        self.CAC: float = LAI_to_CAC(self.LAI)
+        self.LAI: float = biomass_to_LAI(self.X_s, self.c_lar, self.c_tau)                      # LAI: Leaf Area Index. Area of light-absorbing leaf surface per unit of ground surface. 
+                                                                                                # models/deterministic/utils.py > biomass_to_LAI() (Eq. 3.8 B&T)
+        
+        self.CAC: float = LAI_to_CAC(self.LAI)                                                  # Fraction of cultivation area cover. Fraction of the ground covered by the canopy. 
+                                                                                                # models/deterministic/utils.py > LAI_to_CAC() (Eq. 3.7 B&T)
         self.f_phot: float = 0
 
-    def set_fresh_weight_shoot(self):
-        self.fresh_weight_shoot = self.dry_weight * (1 - self.c_tau) / self.dry_weight_fraction
-        self.fresh_weight_shoot_per_plant = self.fresh_weight_shoot / self.plant_density
+## Not used in the code or previously defined
+
+#    def set_fresh_weight_shoot(self):
+ #       self.fresh_weight_shoot = self.dry_weight * (1 - self.c_tau) / self.dry_weight_fraction             # Fresh weight of the shoot. Equation: In the thesis this is fresh weight per plant: Eq. 3.16
+ #       self.fresh_weight_shoot_per_plant = self.fresh_weight_shoot / self.plant_density                    # Fresh weight of the shoot per plant
 
     def update_values(self, X_ns: float, X_s: float):
         self.X_ns = X_ns
@@ -82,25 +87,27 @@ class CropModel:
             for attr, value in vars(self).items():
                 print(f"{attr}: {value}")
 
-    def return_photosynthesis(self, CO2_in, T_in, g_bnd, g_stm, U_par, fun_type='rectangular'):
 
-        CO2_in = 1200
-        T_in = 24
+    #def return_photosynthesis(self, CO2_in, T_in, g_bnd, g_stm, U_par, fun_type='rectangular'):     ###THIS FUNCTION IS NOT USED IN THE CODE
+#
+    #    CO2_in = 1200
+    #    T_in = 24
+    #    CO2_ppm = CO2_in
+    #    g_car = self.c_car_1 * T_in**2 + self.c_car_2 * T_in + self.c_car_3
+    #    g_CO2 = 1 / (1 / g_bnd + 1 / g_stm + 1 / g_car)
+     #   Gamma = self.c_Gamma * self.c_q10_Gamma ** ((T_in - 20) / 10)
+     #   epsilon_biomass = self.c_epsilon * (CO2_ppm - Gamma) / (CO2_ppm + 2 * Gamma)
+     #   if fun_type=='exponential':
+     #       A_sat = g_CO2 * self.c_w * (CO2_ppm - Gamma)
+     #       k_slope =epsilon_biomass / A_sat
+    #        f_phot_max = A_sat * (1 - np.exp(-k_slope * U_par))
+    #    elif fun_type=='rectangular':
+     #       f_phot_max = (epsilon_biomass * U_par * g_CO2 * self.c_w * (CO2_ppm - Gamma)) / (epsilon_biomass * U_par + g_CO2 * self.c_w * (CO2_ppm - Gamma))
+    #    return f_phot_max
 
 
-        CO2_ppm = CO2_in
-        g_car = self.c_car_1 * T_in**2 + self.c_car_2 * T_in + self.c_car_3
-        g_CO2 = 1 / (1 / g_bnd + 1 / g_stm + 1 / g_car)
-        Gamma = self.c_Gamma * self.c_q10_Gamma ** ((T_in - 20) / 10)
-        epsilon_biomass = self.c_epsilon * (CO2_ppm - Gamma) / (CO2_ppm + 2 * Gamma)
-        if fun_type=='exponential':
-            A_sat = g_CO2 * self.c_w * (CO2_ppm - Gamma)
-            k_slope =epsilon_biomass / A_sat
-            f_phot_max = A_sat * (1 - np.exp(-k_slope * U_par))
-        elif fun_type=='rectangular':
-            f_phot_max = (epsilon_biomass * U_par * g_CO2 * self.c_w * (CO2_ppm - Gamma)) / (epsilon_biomass * U_par + g_CO2 * self.c_w * (CO2_ppm - Gamma))
-        return f_phot_max
-    
+
+
     def biomass_ode(self, X_ns: float, X_s: float, T_in: float, CO2_in: float, U_par: float, PPFD: float, g_bnd: float, g_stm: float):
 
         CO2_in = 1200
@@ -113,19 +120,19 @@ class CropModel:
         Gamma = self.c_Gamma * self.c_q10_Gamma ** ((T_in - 20) / 10)
         epsilon_biomass = self.c_epsilon * (CO2_ppm - Gamma) / (CO2_ppm + 2 * Gamma)
         
-        f_phot_max = (epsilon_biomass * U_par * g_CO2 * self.c_w * (CO2_ppm - Gamma)) / (epsilon_biomass * U_par + g_CO2 * self.c_w * (CO2_ppm - Gamma))
-        f_phot = (1 - np.exp(-self.c_K * self.LAI)) * f_phot_max
+        f_phot_max = (epsilon_biomass * U_par * g_CO2 * self.c_w * (CO2_ppm - Gamma)) / (epsilon_biomass * U_par + g_CO2 * self.c_w * (CO2_ppm - Gamma))    #
+        f_phot = (1 - np.exp(-self.c_K * self.LAI)) * f_phot_max                                                                                            #Gross canopy photosynthesis. f_phot_max * CAC (Eq. 3.6 B$T)
         self.f_phot = f_phot
         self.p_phot_max = f_phot_max
-        f_resp = (self.c_resp_sht * (1 - self.c_tau) * X_s + self.c_resp_rt * self.c_tau * X_s) * self.c_q10_resp ** ((T_in - 25) / 10)
+        f_resp = (self.c_resp_sht * (1 - self.c_tau) * X_s + self.c_resp_rt * self.c_tau * X_s) * self.c_q10_resp ** ((T_in - 25) / 10)                     #Maintainance respiration (Eq. 3.5 B&T)
         
         self.f_resp = f_resp
-        r_gr = self.c_gr_max * X_ns / (self.c_gamma * X_s + X_ns) * self.c_q10_gr ** ((T_in - 20) / 10)
+        r_gr = self.c_gr_max * X_ns / (self.c_gamma * X_s + X_ns) * self.c_q10_gr ** ((T_in - 20) / 10)         #Spesific growth rate of the structural dry weight (Eq. 3.4 B&T)
 
         # For testing purposes
         #r_gr = 1e-6 * self.c_q10_gr ** ((T_in - 20) / 10)
-        dX_ns = self.c_a * f_phot - r_gr * X_s - f_resp - (1 - self.c_beta) / self.c_beta * r_gr * X_s
-        dX_s = r_gr * X_s
+        dX_ns = self.c_a * f_phot - r_gr * X_s - f_resp - (1 - self.c_beta) / self.c_beta * r_gr * X_s          #Growth rate of non-structural dry weight (Eq. 3.3b B&T)
+        dX_s = r_gr * X_s                                                                                       #Growth rate of structural dry weight (Eq. 3.3a B&T)
 
         return dX_ns, dX_s
 

@@ -37,9 +37,9 @@ def net_radiation_equation(PAR_flux, CAC, rho_r):
     return (1 - rho_r) * PAR_flux * CAC
 
 
-def biomass_to_LAI(X_s, c_lar, c_tau):
+def biomass_to_LAI(X_s, c_lar, c_tau):          
     # LAI estimated in Van Henten
-    return (1-c_tau)*c_lar*X_s
+    return (1-c_tau)*c_lar*X_s                  # LAI: Leaf Area Index. Area of light-absorbing leaf surface per unit of ground surface. (Eq. 3.8 B&T)
 
 def LAI_to_CAC(LAI, k=0.5):
     """

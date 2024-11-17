@@ -1,6 +1,7 @@
 import csv
 import datetime
 import os
+import numpy as np
 
 class RenderFile:
     """Vertical farm render made to save OpenAI Gym environment to csv file"""
@@ -8,11 +9,12 @@ class RenderFile:
         self.start_date = start_date
 
         now_datetime_str = datetime.datetime.now().strftime("%d%m%y-%H%M")
-        self.file_name = '../render/csv/' + now_datetime_str + '_simulation.csv'
+        self.file_name = 'render/csv/' + now_datetime_str + '_simulation.csv'
 
         # Create file if it doesn't exist
         dir_name = os.path.dirname(self.file_name)
         os.makedirs(dir_name, exist_ok=True)
+        print(os.path.abspath(dir_name))
 
         self.action_info = {
             0: "u_rot",
@@ -53,7 +55,7 @@ class RenderFile:
 
         data = []
 
-        for i in range(len(t)):
+        for i in np.arange(0, len(t), 3600):
             data_row = [self.start_date + datetime.timedelta(seconds=t[i]), t[i]]
 
             for j in range(solutions.shape[0]):
